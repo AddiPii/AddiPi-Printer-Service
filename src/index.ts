@@ -3,7 +3,6 @@ import * as iot from 'azure-iot-device';
 import * as iotMqtt from 'azure-iot-device-mqtt';
 import { CosmosClient, Container } from '@azure/cosmos';
 import express from 'express';
-import { json } from 'stream/consumers';
 
 const IOT_CONN_STRING: string = process.env.IOT_CONN_STRING as string;
 const COSMOS_ENDPOINT: string = process.env.COSMOS_ENDPOINT as string;
