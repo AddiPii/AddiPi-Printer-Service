@@ -1,0 +1,5 @@
+{
+  "problems.exclude": {
+    "**/node_modules/azure-iot-common/tsconfig.json": true
+  }
+}

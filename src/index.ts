@@ -1,7 +1,7 @@
 import cron from 'node-cron';
-import { Client as DeviceClient, Message } from 'azure-iot-device';
+import * as iot from 'azure-iot-device';
+import * as iotMqtt from 'azure-iot-device-mqtt';
 import { CosmosClient, Container } from '@azure/cosmos';
-import { Mqtt } from 'azure-iot-device-mqtt';
 
 const IOT_CONN_STRING: string = process.env.IOT_CONN_STRING as string;
 const COSMOS_ENDPOINT: string = process.env.COSMOS_ENDPOINT as string;
@@ -37,7 +37,11 @@ try {
 }
 
 
-const deviceClient: DeviceClient = DeviceClient.fromConnectionString(IOT_CONN_STRING, Mqtt);
+// The Azure IoT packages export CommonJS-style members; use namespace imports
+const DeviceClient: any = (iot as any).Client;
+const Message: any = (iot as any).Message;
+const Mqtt: any = (iotMqtt as any).Mqtt;
+const deviceClient: any = DeviceClient.fromConnectionString(IOT_CONN_STRING, Mqtt);
 
 async function startScheludedJobs(): Promise<void> {
     if (!container) {
@@ -52,9 +56,9 @@ async function startScheludedJobs(): Promise<void> {
 
     for (const job of jobs){
         job.status = 'printing';
-        await container.items.upsert(jobs);
+        await container.items.upsert(job);
 
-        const msg: Message = new Message(JSON.stringify({ event: 'print_start', fileId: job.fileId }));
+        const msg: any = new Message(JSON.stringify({ event: 'print_start', fileId: job.fileId }));
         await deviceClient.sendEvent(msg);
         console.log(`STARTED ${job.fileId} at ${job.scheludedAt}`);
     }
