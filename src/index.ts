@@ -2,6 +2,8 @@ import cron from 'node-cron';
 import * as iot from 'azure-iot-device';
 import * as iotMqtt from 'azure-iot-device-mqtt';
 import { CosmosClient, Container } from '@azure/cosmos';
+import express from 'express';
+import { json } from 'stream/consumers';
 
 const IOT_CONN_STRING: string = process.env.IOT_CONN_STRING as string;
 const COSMOS_ENDPOINT: string = process.env.COSMOS_ENDPOINT as string;
@@ -66,3 +68,31 @@ async function startScheludedJobs(): Promise<void> {
 
 cron.schedule('* * * * *', startScheludedJobs);
 console.log('Scheluder runs every mninute');
+
+
+const app = express();
+const PORT = 3050;
+
+app.use(express.json());
+
+app.get('/', (request, response) => {
+  response.send('Addipi Printer Service działa! 🚀');
+});
+
+app.get('/printer/health', (request, response) => {
+    response.send(JSON.stringify({
+         'ok': true, 
+         "time": new Date().toISOString() }))
+})
+
+// app.get('/printer/devices', (request, response) => {
+// TODO: lista zarejestrowanych drukarek/urządzeń (statusy, lastSeen, capabilities) — może pobierać z IoT Hub
+// })
+
+// app.get('/printer/metrics', (request, response) => {
+//     TODO: proste liczniki przydatne do dashboardu Response: { "queued": 12, "printing": 2, "failed24h": 3 }
+// })
+
+app.listen(PORT, () => {
+  console.log(`Serwer działa na porcie ${PORT}`);
+});
