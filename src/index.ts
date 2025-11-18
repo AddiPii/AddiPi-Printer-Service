@@ -16,6 +16,7 @@ if (!COSMOS_KEY) missing.push('COSMOS_KEY');
 if (missing.length) {
 	console.error('Missing required environment variables:', missing.join(', '));
 	console.error('Please set these before starting the service. Example (PowerShell):');
+    console.error('$env:IOT_CONN_STRING = "HostName=...;DeviceId=...;SharedAccessKey=..."');
 	console.error('$env:COSMOS_ENDPOINT = "https://<account>.documents.azure.com:443/"');
 	console.error('$env:COSMOS_KEY = "<primary-key>"');
 	process.exit(1);
