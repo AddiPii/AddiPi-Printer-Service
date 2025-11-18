@@ -75,11 +75,11 @@ const PORT = 3050;
 
 app.use(express.json());
 
-app.get('/', (request, response) => {
+app.get('/', (request, response): void => {
   response.send('Addipi Printer Service działa! 🚀');
 });
 
-app.get('/printer/health', (request, response) => {
+app.get('/printer/health', (request, response): void => {
     response.send(JSON.stringify({
          'ok': true, 
          "time": new Date().toISOString() }))
@@ -93,6 +93,6 @@ app.get('/printer/health', (request, response) => {
 //     TODO: proste liczniki przydatne do dashboardu Response: { "queued": 12, "printing": 2, "failed24h": 3 }
 // })
 
-app.listen(PORT, () => {
+app.listen(PORT, (): void => {
   console.log(`Serwer działa na porcie ${PORT}`);
 });

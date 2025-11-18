@@ -1,5 +1,7 @@
 # AddiPi Printer Service
 
+AddiPi Printer Service to lekki mikroserwis odpowiedzialny za zarządzanie i wykonywanie zadań drukowania. Obsługuje harmonogramowanie zadań, przechowywanie ich w Azure Cosmos DB oraz wysyła komendy startu druku do urządzeń przez Azure IoT Hub (MQTT). Udostępnia też prosty serwer HTTP z endpointami health i podstawowego zarządzania.
+
 > Serwis obsługujący zadania drukowania: czyta zaplanowane zadania z Cosmos DB, wysyła komendy do urządzeń przez Azure IoT i udostępnia prosty HTTP health/management API.
 
 ## Najważniejsze informacje
