@@ -23,6 +23,7 @@
   "homepage": "https://github.com/AddiPii/AddiPi-Printer-Service#readme",
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/express": "^5.0.5",
     "@types/node": "^24.10.1",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
