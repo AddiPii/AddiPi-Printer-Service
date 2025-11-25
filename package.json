@@ -23,6 +23,7 @@
   "homepage": "https://github.com/AddiPii/AddiPi-Printer-Service#readme",
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/azure": "^0.9.20",
     "@types/express": "^5.0.5",
     "@types/node": "^24.10.1",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
@@ -40,8 +41,8 @@
   "dependencies": {
     "@azure/cosmos": "^4.7.0",
     "@azure/identity": "^4.13.0",
-    "azure-iot-device": "^1.18.3",
-    "azure-iot-device-mqtt": "^1.16.3",
+    "azure-iot-device": "^1.17.9",
+    "azure-iot-device-mqtt": "^1.15.9",
     "express": "^5.1.0",
     "node-cron": "^4.2.1"
   }

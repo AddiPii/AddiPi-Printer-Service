@@ -3,12 +3,14 @@ import * as iot from 'azure-iot-device';
 import * as iotMqtt from 'azure-iot-device-mqtt';
 import { CosmosClient, Container } from '@azure/cosmos';
 import express from 'express';
+import type {Request, Response} from 'express'
+
 
 const IOT_CONN_STRING: string = process.env.IOT_CONN_STRING as string;
 const COSMOS_ENDPOINT: string = process.env.COSMOS_ENDPOINT as string;
 const COSMOS_KEY: string = process.env.COSMOS_KEY as string;
 
-const missing = [];
+const missing: Array<string> = [];
 if (!IOT_CONN_STRING) missing.push('IOT_CONN_STRING');
 if (!COSMOS_ENDPOINT) missing.push('COSMOS_ENDPOINT');
 if (!COSMOS_KEY) missing.push('COSMOS_KEY');
@@ -60,7 +62,7 @@ async function startScheludedJobs(): Promise<void> {
         job.status = 'printing';
         await container.items.upsert(job);
 
-        const msg: any = new Message(JSON.stringify({ event: 'print_start', fileId: job.fileId }));
+        const msg = new Message(JSON.stringify({ event: 'print_start', fileId: job.fileId }));
         await deviceClient.sendEvent(msg);
         console.log(`STARTED ${job.fileId} at ${job.scheludedAt}`);
     }
@@ -75,14 +77,27 @@ const PORT = 3050;
 
 app.use(express.json());
 
-app.get('/', (request, response): void => {
-  response.send('Addipi Printer Service działa! 🚀');
+app.get('/', (request: Request, response:Response<string>): void => {
+  response.json('Addipi Printer Service działa! 🚀');
 });
 
-app.get('/printer/health', (request, response): void => {
-    response.send(JSON.stringify({
-         'ok': true, 
-         "time": new Date().toISOString() }))
+type healthMessageType = {
+    ok: boolean,
+    time: string
+}
+
+const healthMessage: healthMessageType = {
+    ok: true,
+    time: new Date().toISOString()
+}
+
+app.get('/printer/health', (
+    request: Request,
+    response:Response<healthMessageType>
+): void => {
+
+    response.json(healthMessage)
+
 })
 
 // app.get('/printer/devices', (request, response) => {
@@ -92,6 +107,9 @@ app.get('/printer/health', (request, response): void => {
 // app.get('/printer/metrics', (request, response) => {
 //     TODO: proste liczniki przydatne do dashboardu Response: { "queued": 12, "printing": 2, "failed24h": 3 }
 // })
+app.use((request: Request, response: Response<{error: string}>): void => {
+    response.status(404).json({error: 'Endpoint not found'})
+})
 
 app.listen(PORT, (): void => {
   console.log(`Serwer działa na porcie ${PORT}`);
