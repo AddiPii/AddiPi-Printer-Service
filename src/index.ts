@@ -8,6 +8,7 @@ import { Client as ServiceClient} from 'azure-iothub'
 const IOT_HUB_SERVICE_CS: string = process.env.IOT_HUB_SERVICE_CS as string;
 const COSMOS_ENDPOINT: string = process.env.COSMOS_ENDPOINT as string;
 const COSMOS_KEY: string = process.env.COSMOS_KEY as string;
+const PORT_ENV:string | undefined = process.env.PRINTER_PORT;
 
 const missing: Array<string> = [];
 if (!IOT_HUB_SERVICE_CS) missing.push('IOT_HUB_SERVICE_CONNECTION_STRING');
@@ -91,7 +92,7 @@ console.log('Scheduler runs every mninute');
 
 
 const app = express();
-const PORT = 3050;
+
 
 app.use(express.json());
 
@@ -131,6 +132,15 @@ app.get('/printer/health', (
 app.use((request: Request, response: Response<{error: string}>): void => {
     response.status(404).json({error: 'Endpoint not found'})
 })
+
+let PORT: number = 3050
+
+if(!PORT_ENV){
+    throw Error("Define PORT_ENV")
+}
+
+PORT = parseInt(PORT_ENV)
+
 
 app.listen(PORT, (): void => {
   console.log(`Serwer działa na porcie ${PORT}`);
