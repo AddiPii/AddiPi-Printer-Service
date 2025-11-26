@@ -1,6 +1,4 @@
 import cron from 'node-cron';
-import * as iot from 'azure-iot-device';
-import * as iotMqtt from 'azure-iot-device-mqtt';
 import { CosmosClient, Container } from '@azure/cosmos';
 import express from 'express';
 import type {Request, Response} from 'express'
@@ -8,7 +6,6 @@ import { Client as ServiceClient} from 'azure-iothub'
 
 
 const IOT_HUB_SERVICE_CS: string = process.env.IOT_HUB_SERVICE_CS as string;
-const IOT_CONN_STRING: string = process.env.IOT_CONN_STRING as string;
 const COSMOS_ENDPOINT: string = process.env.COSMOS_ENDPOINT as string;
 const COSMOS_KEY: string = process.env.COSMOS_KEY as string;
 
@@ -43,23 +40,6 @@ try {
 }
 
 
-// // eslint-disable-next-line @typescript-eslint/no-explicit-any
-// const _iotAny: any = iot as any;
-// // eslint-disable-next-line @typescript-eslint/no-explicit-any
-// const MessageCtor: any = _iotAny.Message ?? _iotAny.default?.Message;
-// // eslint-disable-next-line @typescript-eslint/no-explicit-any
-// const ClientCtor: any = _iotAny.Client ?? _iotAny.default?.Client;
-// if (!MessageCtor) {
-//     console.error('Cannot find Message constructor on azure-iot-device package. Detected export keys:', Object.keys(_iotAny));
-//     throw new Error('Missing Message constructor from azure-iot-device');
-// }
-// if (!ClientCtor) {
-//     console.error('Cannot find Client constructor on azure-iot-device package. Detected export keys:', Object.keys(_iotAny));
-//     throw new Error('Missing Client constructor from azure-iot-device');
-// }
-// const deviceClient = ClientCtor.fromConnectionString(IOT_CONN_STRING, iotMqtt.Mqtt);
-
-// const registry = Registry.fromConnectionString(IOT_HUB_SERVICE_CS);
 const serviceClient = ServiceClient.fromConnectionString(IOT_HUB_SERVICE_CS);
 
 async function startScheduledJobs(): Promise<void> {
@@ -77,8 +57,6 @@ async function startScheduledJobs(): Promise<void> {
     console.log(jobs)
 
     
-    
-
     for (const job of jobs){
         if(!job.id) continue;
 
