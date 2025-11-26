@@ -41,33 +41,48 @@ try {
 }
 
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _iotAny: any = iot as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const MessageCtor: any = _iotAny.Message ?? _iotAny.default?.Message;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ClientCtor: any = _iotAny.Client ?? _iotAny.default?.Client;
+if (!MessageCtor) {
+    console.error('Cannot find Message constructor on azure-iot-device package. Detected export keys:', Object.keys(_iotAny));
+    throw new Error('Missing Message constructor from azure-iot-device');
+}
+if (!ClientCtor) {
+    console.error('Cannot find Client constructor on azure-iot-device package. Detected export keys:', Object.keys(_iotAny));
+    throw new Error('Missing Client constructor from azure-iot-device');
+}
+const deviceClient = ClientCtor.fromConnectionString(IOT_CONN_STRING, iotMqtt.Mqtt);
 
-const Message = iot.Message;
-const deviceClient = iot.Client.fromConnectionString(IOT_CONN_STRING, iotMqtt.Mqtt);
-
-async function startScheludedJobs(): Promise<void> {
+async function startScheduledJobs(): Promise<void> {
     if (!container) {
         console.error('Cosmos DB container not initialized.');
         return;
     }
 
-    const now: string = new Date().toISOString();
-    const query: string = `SELECT * FROM c WHERE c.status = 'scheluded' AND c.scheludedAt <= '${now}'`;
-
-    const { resources: jobs }: { resources: Array<{ status: string; scheludedAt: string; fileId: string;}> } = await container.items.query(query).fetchAll();
+    const nowDate: Date = new Date();
+    nowDate.setHours(nowDate.getHours() + 1)
+    const now: string = nowDate.toISOString().substring(0, 19)
+    const query: string = `SELECT * FROM c WHERE c.status = 'scheduled' AND c.scheduledAt <= "${now}"`;
+    const { resources: jobs }: { resources: Array<{ status: string; scheduledAt: string; fileId: string;}> } = await container.items.query(query).fetchAll();
+    console.log(query)
+    console.log(jobs)
 
     for (const job of jobs){
         job.status = 'printing';
         await container.items.upsert(job);
 
-        const msg = new Message(JSON.stringify({ event: 'print_start', fileId: job.fileId }));
+        const msg = new MessageCtor(JSON.stringify({ event: 'print_start', fileId: job.fileId }));
         await deviceClient.sendEvent(msg);
-        console.log(`STARTED ${job.fileId} at ${job.scheludedAt}`);
+        console.log(`STARTED ${job.fileId} at ${job.scheduledAt}`);
     }
 }
 
-cron.schedule('* * * * *', startScheludedJobs);
-console.log('Scheluder runs every mninute');
+cron.schedule('* * * * *', startScheduledJobs);
+console.log('Scheduler runs every mninute');
 
 
 const app = express();
@@ -97,6 +112,8 @@ app.get('/printer/health', (
     response.json(healthMessage)
 
 })
+
+
 
 // app.get('/printer/devices', (request, response) => {
 // TODO: lista zarejestrowanych drukarek/urządzeń (statusy, lastSeen, capabilities) — może pobierać z IoT Hub
