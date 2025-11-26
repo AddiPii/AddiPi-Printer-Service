@@ -41,11 +41,9 @@ try {
 }
 
 
-// The Azure IoT packages export CommonJS-style members; use namespace imports
-const DeviceClient: any = (iot as any).Client;
-const Message: any = (iot as any).Message;
-const Mqtt: any = (iotMqtt as any).Mqtt;
-const deviceClient: any = DeviceClient.fromConnectionString(IOT_CONN_STRING, Mqtt);
+
+const Message = iot.Message;
+const deviceClient = iot.Client.fromConnectionString(IOT_CONN_STRING, iotMqtt.Mqtt);
 
 async function startScheludedJobs(): Promise<void> {
     if (!container) {
