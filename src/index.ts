@@ -4,21 +4,23 @@ import * as iotMqtt from 'azure-iot-device-mqtt';
 import { CosmosClient, Container } from '@azure/cosmos';
 import express from 'express';
 import type {Request, Response} from 'express'
+import { Client as ServiceClient} from 'azure-iothub'
 
 
+const IOT_HUB_SERVICE_CS: string = process.env.IOT_HUB_SERVICE_CS as string;
 const IOT_CONN_STRING: string = process.env.IOT_CONN_STRING as string;
 const COSMOS_ENDPOINT: string = process.env.COSMOS_ENDPOINT as string;
 const COSMOS_KEY: string = process.env.COSMOS_KEY as string;
 
 const missing: Array<string> = [];
-if (!IOT_CONN_STRING) missing.push('IOT_CONN_STRING');
+if (!IOT_HUB_SERVICE_CS) missing.push('IOT_HUB_SERVICE_CONNECTION_STRING');
 if (!COSMOS_ENDPOINT) missing.push('COSMOS_ENDPOINT');
 if (!COSMOS_KEY) missing.push('COSMOS_KEY');
 
 if (missing.length) {
 	console.error('Missing required environment variables:', missing.join(', '));
 	console.error('Please set these before starting the service. Example (PowerShell):');
-    console.error('$env:IOT_CONN_STRING = "HostName=...;DeviceId=...;SharedAccessKey=..."');
+    console.error('IOT_HUB_SERVICE_CONNECTION_STRING get it from IoT Hub → Shared access policies → service → Primary connection string');
 	console.error('$env:COSMOS_ENDPOINT = "https://<account>.documents.azure.com:443/"');
 	console.error('$env:COSMOS_KEY = "<primary-key>"');
 	process.exit(1);
@@ -41,21 +43,24 @@ try {
 }
 
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _iotAny: any = iot as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const MessageCtor: any = _iotAny.Message ?? _iotAny.default?.Message;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ClientCtor: any = _iotAny.Client ?? _iotAny.default?.Client;
-if (!MessageCtor) {
-    console.error('Cannot find Message constructor on azure-iot-device package. Detected export keys:', Object.keys(_iotAny));
-    throw new Error('Missing Message constructor from azure-iot-device');
-}
-if (!ClientCtor) {
-    console.error('Cannot find Client constructor on azure-iot-device package. Detected export keys:', Object.keys(_iotAny));
-    throw new Error('Missing Client constructor from azure-iot-device');
-}
-const deviceClient = ClientCtor.fromConnectionString(IOT_CONN_STRING, iotMqtt.Mqtt);
+// // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// const _iotAny: any = iot as any;
+// // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// const MessageCtor: any = _iotAny.Message ?? _iotAny.default?.Message;
+// // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// const ClientCtor: any = _iotAny.Client ?? _iotAny.default?.Client;
+// if (!MessageCtor) {
+//     console.error('Cannot find Message constructor on azure-iot-device package. Detected export keys:', Object.keys(_iotAny));
+//     throw new Error('Missing Message constructor from azure-iot-device');
+// }
+// if (!ClientCtor) {
+//     console.error('Cannot find Client constructor on azure-iot-device package. Detected export keys:', Object.keys(_iotAny));
+//     throw new Error('Missing Client constructor from azure-iot-device');
+// }
+// const deviceClient = ClientCtor.fromConnectionString(IOT_CONN_STRING, iotMqtt.Mqtt);
+
+// const registry = Registry.fromConnectionString(IOT_HUB_SERVICE_CS);
+const serviceClient = ServiceClient.fromConnectionString(IOT_HUB_SERVICE_CS);
 
 async function startScheduledJobs(): Promise<void> {
     if (!container) {
@@ -67,20 +72,36 @@ async function startScheduledJobs(): Promise<void> {
     nowDate.setHours(nowDate.getHours() + 1)
     const now: string = nowDate.toISOString().substring(0, 19)
     const query: string = `SELECT * FROM c WHERE c.status = 'scheduled' AND c.scheduledAt <= "${now}"`;
-    const { resources: jobs }: { resources: Array<{ status: string; scheduledAt: string; fileId: string;}> } = await container.items.query(query).fetchAll();
+    const { resources: jobs }: { resources: Array<{ id: string, status: string; scheduledAt: string; fileId: string;}> } = await container.items.query(query).fetchAll();
     console.log(query)
     console.log(jobs)
 
+    
+    
+
     for (const job of jobs){
+        if(!job.id) continue;
+
         job.status = 'printing';
-        await container.items.upsert(job);
+        await container.item(job.id, job.id).replace(job);
 
         try {
-            const msg = new MessageCtor(JSON.stringify({ event: 'print_start', fileId: job.fileId }));
-            await deviceClient.sendEvent(msg)
-            console.log(`STARTED ${job.fileId} at ${job.scheduledAt}`);
-        } catch (error) {
-            console.error(error)
+            const methodParams = {
+                deviceId: "raspberry-pi-mkt-01", 
+                methodName: "startPrint",
+                payload: JSON.stringify({ event: 'print_start', fileId: job.fileId, jobId: job.id }),
+                responseTimeoutInSeconds: 30
+            }
+
+            const response = await serviceClient.invokeDeviceMethod(methodParams.deviceId, methodParams);
+            console.log(`STARTED ${job.fileId} at ${job.scheduledAt} `);
+
+       } catch (error) {
+            console.error(`Błąd wysyłania print_start dla ${job.fileId}:`, error);
+
+            // Cofnij status na failed
+            job.status = 'failed';
+            await container.item(job.id, job.id).replace(job);
         }
         
     }
