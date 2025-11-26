@@ -56,7 +56,7 @@ async function startScheduledJobs(): Promise<void> {
     console.log(query)
     console.log(jobs)
 
-    
+
     for (const job of jobs){
         if(!job.id) continue;
 
@@ -72,6 +72,7 @@ async function startScheduledJobs(): Promise<void> {
             }
 
             const response = await serviceClient.invokeDeviceMethod(methodParams.deviceId, methodParams);
+            console.log(`STARTED ${job.fileId} at ${job.scheduledAt} | Pi odpowiedziało: ${response}`);
             console.log(`STARTED ${job.fileId} at ${job.scheduledAt} `);
 
        } catch (error) {
@@ -126,6 +127,7 @@ app.get('/printer/health', (
 // app.get('/printer/metrics', (request, response) => {
 //     TODO: proste liczniki przydatne do dashboardu Response: { "queued": 12, "printing": 2, "failed24h": 3 }
 // })
+
 app.use((request: Request, response: Response<{error: string}>): void => {
     response.status(404).json({error: 'Endpoint not found'})
 })
