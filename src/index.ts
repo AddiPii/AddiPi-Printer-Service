@@ -75,9 +75,14 @@ async function startScheduledJobs(): Promise<void> {
         job.status = 'printing';
         await container.items.upsert(job);
 
-        const msg = new MessageCtor(JSON.stringify({ event: 'print_start', fileId: job.fileId }));
-        await deviceClient.sendEvent(msg);
-        console.log(`STARTED ${job.fileId} at ${job.scheduledAt}`);
+        try {
+            const msg = new MessageCtor(JSON.stringify({ event: 'print_start', fileId: job.fileId }));
+            await deviceClient.sendEvent(msg)
+            console.log(`STARTED ${job.fileId} at ${job.scheduledAt}`);
+        } catch (error) {
+            console.error(error)
+        }
+        
     }
 }
 
