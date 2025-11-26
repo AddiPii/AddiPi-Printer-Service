@@ -28,7 +28,6 @@
     "@types/node": "^24.10.1",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
-    "azure-iothub": "^1.16.6",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
@@ -43,6 +42,7 @@
     "@azure/cosmos": "^4.7.0",
     "@azure/identity": "^4.13.0",
     "azure-iot-device": "^1.18.3",
+    "azure-iothub": "^1.16.6",
     "azure-iot-device-mqtt": "^1.15.9",
     "express": "^5.1.0",
     "node-cron": "^4.2.1"
