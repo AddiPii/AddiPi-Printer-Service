@@ -1,3 +1,4 @@
+//simulating raspberry pi device receiving messages
 import * as iot from 'azure-iot-device';
 import * as mqtt from 'azure-iot-device-mqtt';
 
