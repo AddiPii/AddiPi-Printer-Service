@@ -55,8 +55,8 @@ async function startScheduledJobs(): Promise<void> {
     const now: string = nowDate.substring(0, 19)
     const query: string = `SELECT * FROM c WHERE c.status = 'scheduled' AND c.scheduledAt <= "${now}"`;
     const { resources: jobs }: { resources: Array<{ id: string, status: string; scheduledAt: string; fileId: string;}> } = await container.items.query(query).fetchAll();
-    console.log(query)
-    console.log(jobs)
+    // console.log(query)
+    console.log(`Job ${jobs[0]?.id} info: ${jobs}`)
 
 
     for (const job of jobs){
