@@ -51,9 +51,8 @@ async function startScheduledJobs(): Promise<void> {
         return;
     }
 
-    const nowDate: Date = new Date();
-    nowDate.setHours(nowDate.getHours() + 1)
-    const now: string = nowDate.toISOString().substring(0, 19)
+    const nowDate: string = getLocalISO()
+    const now: string = nowDate.substring(0, 19)
     const query: string = `SELECT * FROM c WHERE c.status = 'scheduled' AND c.scheduledAt <= "${now}"`;
     const { resources: jobs }: { resources: Array<{ id: string, status: string; scheduledAt: string; fileId: string;}> } = await container.items.query(query).fetchAll();
     console.log(query)
