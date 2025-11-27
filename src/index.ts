@@ -5,6 +5,8 @@ import express from 'express';
 import type {Request, Response} from 'express'
 import { Client as ServiceClient} from 'azure-iothub'
 import getLocalISO from './helpers/getLocalISO.js';
+import cors from 'cors'
+
 
 
 const IOT_HUB_SERVICE_CS: string = process.env.IOT_HUB_SERVICE_CS as string;
@@ -96,6 +98,8 @@ const app = express();
 
 
 app.use(express.json());
+
+app.use(cors)
 
 app.get('/', (request: Request, response:Response<string>): void => {
   response.json('Addipi Printer Service działa! 🚀');
