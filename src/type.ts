@@ -4,3 +4,8 @@ export interface configType {
     COSMOS_KEY: string,
     PORT: number,
 }
+
+export type healthMessageType = {
+    ok: boolean,
+    time: string
+}
