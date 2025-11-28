@@ -99,7 +99,7 @@ const app = express();
 
 app.use(express.json());
 
-app.use(cors)
+app.use(cors())
 
 app.get('/', (request: Request, response:Response<string>): void => {
   response.json('Addipi Printer Service działa! 🚀');
