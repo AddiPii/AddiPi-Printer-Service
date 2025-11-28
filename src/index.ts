@@ -1,49 +1,22 @@
 //AddiPi Printer Service
 import cron from 'node-cron';
-import { CosmosClient, Container } from '@azure/cosmos';
+import type { Container } from '@azure/cosmos';
 import express from 'express';
 import type {Request, Response} from 'express'
 import { Client as ServiceClient} from 'azure-iothub'
 import getLocalISO from './helpers/getLocalISO.js';
 import cors from 'cors'
+import { CONFIG } from './config/config.js';
+import { initCosmosContainer } from './services/initCosmosContainer.js';
 
 
 
-const IOT_HUB_SERVICE_CS: string = process.env.IOT_HUB_SERVICE_CS as string;
-const COSMOS_ENDPOINT: string = process.env.COSMOS_ENDPOINT as string;
-const COSMOS_KEY: string = process.env.COSMOS_KEY as string;
-const PORT_ENV:string = process.env.PRINTER_PORT || "3050"
+const IOT_HUB_SERVICE_CS: string = CONFIG.IOT_HUB_SERVICE_CS
+const COSMOS_ENDPOINT: string = CONFIG.COSMOS_ENDPOINT
+const COSMOS_KEY: string = CONFIG.COSMOS_KEY
+const PORT: number = CONFIG.PORT
 
-const missing: Array<string> = [];
-if (!IOT_HUB_SERVICE_CS) missing.push('IOT_HUB_SERVICE_CONNECTION_STRING');
-if (!COSMOS_ENDPOINT) missing.push('COSMOS_ENDPOINT');
-if (!COSMOS_KEY) missing.push('COSMOS_KEY');
-
-if (missing.length) {
-	console.error('Missing required environment variables:', missing.join(', '));
-	console.error('Please set these before starting the service. Example (PowerShell):');
-    console.error('IOT_HUB_SERVICE_CONNECTION_STRING get it from IoT Hub → Shared access policies → service → Primary connection string');
-	console.error('$env:COSMOS_ENDPOINT = "https://<account>.documents.azure.com:443/"');
-	console.error('$env:COSMOS_KEY = "<primary-key>"');
-	process.exit(1);
-}
-
-let container: Container | undefined;
-let cosmosClient: CosmosClient | undefined;
-
-try {
-    cosmosClient = new CosmosClient({ endpoint: COSMOS_ENDPOINT, key: COSMOS_KEY });
-    container = cosmosClient.database('addipi').container('jobs');
-} catch (err) {
-    if (err instanceof Error){
-        console.error('Failed to create Cosmos DB client:', err.message);
-    }
-    else{
-        console.error('Failed to create Cosmos DB client:', String(err));
-    }
-    process.exit(1);
-}
-
+const container: Container = initCosmosContainer(COSMOS_ENDPOINT, COSMOS_KEY)
 
 const serviceClient = ServiceClient.fromConnectionString(IOT_HUB_SERVICE_CS);
 
@@ -138,8 +111,6 @@ app.use((request: Request, response: Response<{error: string}>): void => {
     response.status(404).json({error: 'Endpoint not found'})
 })
 
-
-const PORT = parseInt(PORT_ENV)
 
 app.listen(PORT, (): void => {
   console.log(`Serwer działa na porcie ${PORT}`);
