@@ -180,3 +180,183 @@ If you want, I can also:
 - add `docker-compose.dev.yml` for hot-reload and bind mounts,
 - add example `curl` commands for endpoints,
 - add `CONTRIBUTING.md` with PR guidelines.
+
+
+[PL]
+AddiPi Printer Service to lekka mikro-usługa odpowiedzialna za zarządzanie i wykonywanie zadań drukowania. Obsługuje harmonogram zadań, przechowywanie ich w Azure Cosmos DB oraz wysyłanie poleceń startu do urządzeń przez Azure IoT Hub (MQTT). Udostępnia także prosty serwer HTTP z endpointami zdrowia i podstawowej administracji.
+
+> Usługa obsługująca zadania drukowania: odczytuje zaplanowane zadania z Cosmos DB, wysyła polecenia do urządzeń przez Azure IoT i udostępnia prosty API health/management.
+
+Dokument ten opisuje AddiPi Printer Service — małą mikro-usługę, która planuje i wykonuje zadania drukowania dla sieciowych drukarek (lub urządzeń sterujących drukarkami, np. Raspberry Pi). Usługa odczytuje zaplanowane zadania z Azure Cosmos DB, aktualizuje ich status i wywołuje akcje na urządzeniach poprzez Azure IoT Hub.
+
+Poniższy README zawiera kompleksowy przegląd projektu, w tym architekturę, zmienne środowiskowe, uruchamianie lokalne, użycie Dockera i Docker Compose, zachowanie harmonogramu, integrację z Cosmos/IoT, wskazówki rozwiązywania problemów, testowanie i rekomendacje produkcyjne.
+
+## Spis treści
+
+- Przegląd projektu
+- Architektura i składniki
+- Zmienne środowiskowe
+- Rozwój lokalny
+- Budowanie i uruchomienie produkcyjne
+- Docker i Compose
+- Orkiestracja w monorepo
+- Harmonogram i obsługa dat
+- Integracja z Azure IoT Hub
+- Logowanie, błędy i retry
+- Rozwiązywanie problemów
+- Testy i CI
+- Bezpieczeństwo i rekomendacje produkcyjne
+- Wkład (Contributing)
+- Licencja
+
+## Przegląd projektu
+
+- Cel: wykonywanie zaplanowanych zadań drukowania przez wysłanie polecenia `print_start` do urządzeń za pośrednictwem Azure IoT Hub i zapisywanie aktualizacji statusu w Cosmos DB.
+- Stos technologiczny: TypeScript, Node.js, Express, SDK Azure, Docker.
+
+## Architektura i składniki
+
+- `src/` — główny kod usługi (aplikacja Express, scheduler, integracje z Cosmos i IoT).
+- Klient Cosmos DB: `@azure/cosmos` (domyślnie baza `addipi`, kontener `jobs`).
+- Komunikacja IoT:
+  - `azure-iot-device` i `azure-iot-device-mqtt` dla klienta urządzenia (device SDK)
+  - `azure-iothub` dla operacji po stronie serwisu (invoke direct methods)
+- Harmonogram: `node-cron`, skonfigurowany do uruchamiania co minutę.
+- `Dockerfile`: multi-stage build generujący niewielki obraz runtime.
+- Pliki Compose: plik na poziomie serwisu i najwyższy poziom dla orkiestracji monorepo.
+
+## Zmienne środowiskowe
+
+Wymagane zmienne (przykłady):
+
+- `IOT_CONN_STRING` lub `IOT_HUB_SERVICE_CS` — connection string do IoT Hub (urządzenie lub service string w zależności od operacji). Przykład: `HostName=...;DeviceId=...;SharedAccessKey=...`.
+- `COSMOS_ENDPOINT` — endpoint Cosmos DB, np. `https://<account>.documents.azure.com:443/`
+- `COSMOS_KEY` — klucz główny Cosmos DB
+- `PRINTER_PORT` — opcjonalny port HTTP (domyślnie: `3050`)
+
+Uwaga:
+
+- Wartości w `process.env` są typu string; dokonaj konwersji i walidacji (np. port na number) przed użyciem.
+- W środowisku produkcyjnym używaj magazynu sekretów (Azure Key Vault, GitHub Secrets).
+
+## Rozwój lokalny
+
+Wymagania: Node.js 18+ (lub nowsze LTS), npm.
+
+Instalacja zależności:
+
+```powershell
+npm install
+```
+
+Start w trybie developerskim (hot reload):
+
+```powershell
+npm run dev
+```
+
+Endpointy:
+
+- `GET /` — podstawowy health/status
+- `GET /printer/health` — zwraca `{ ok: true, time: "YYYYMMDD_HHMMSS" }`
+
+## Budowanie i uruchomienie produkcyjne
+
+Kompilacja TypeScript:
+
+```powershell
+npm run build
+```
+
+Uruchomienie skompilowanego kodu:
+
+```powershell
+node dist/index.js
+```
+
+Skrypt `start` może kompilować i uruchamiać skompilowany artefakt.
+
+## Docker
+
+Budowanie obrazu multi-stage:
+
+```powershell
+docker build -t addipi-printer-service .
+```
+
+Uruchomienie z plikiem `.env`:
+
+```powershell
+docker run --rm --env-file .env -p 3050:3050 addipi-printer-service
+```
+
+Jeśli wystąpią problemy z natywnymi zależnościami na Alpine, builder używa Debian-slim dla lepszej kompatybilności. W razie potrzeby dodaj narzędzia budowania (`build-essential`, `python3`) w etapie budowy.
+
+### Docker Compose (poziom serwisu)
+
+W folderze serwisu (`AddiPi-Printer-Service`):
+
+```powershell
+docker compose up --build
+```
+
+### Docker Compose w monorepo (poziom top-level)
+
+Jeśli repo zawiera wiele usług (np. `AddiPi-Printer-Service`, `AddiPi-Files-Service`, `AddiPi-Queue-Service`), plik `docker-compose.yml` na poziomie repozytorium orkiestruje wszystkie serwisy. Ścieżki w pliku compose są względne względem lokalizacji pliku — jeśli przeniesiesz plik, zaktualizuj `build.context`.
+
+## Harmonogram i obsługa dat
+
+- Harmonogram uruchamia się co minutę i wyszukuje zadania ze statusem `scheduled`, których `scheduledAt` jest mniejsze lub równe aktualnemu czasowi.
+- Usługa akceptuje `scheduledAt` w elastycznych formatach ISO, takich jak `2025-11-26T16:50` (bez sekund). Kod normalizuje i parsuje takie ciągi przed podjęciem decyzji o uruchomieniu zadania.
+- Wyświetlanie i logi używają formatu `%Y%m%d_%H%M%S` (np. `20251126_142530`).
+
+## Integracja z Azure IoT Hub
+
+- Użyj `azure-iothub` do wywoływania metod bezpośrednich na urządzeniach (np. `startPrint`) oraz `azure-iot-device` dla klienta urządzenia.
+- Ze względu na różnice eksportów między CJS a ESM, kod wykrywa i stosuje `default` eksport jako fallback, gdy to konieczne.
+
+## Logowanie, błędy i retry
+
+- Usługa korzysta z `console.log` do widoczności. W produkcji przekieruj logi do scentralizowanego systemu logowania.
+- Przy wywoływaniu metod urządzeń warto zaimplementować retry/backoff, aby obsłużyć przejściowe problemy sieciowe. Nieudane zadania powinny być oznaczane jako `failed` w Cosmos DB.
+
+## Rozwiązywanie problemów
+
+- `Message is not a constructor` — spowodowane niezgodnością eksportów w `azure-iot-device`. Repo zawiera defensywne rozpoznawanie eksportów; jeśli błąd nadal występuje, zbierz klucze eksportów i dopasujemy import.
+- Ostrzeżenie ESM: `Reparsing as ES module because module syntax was detected` — rozwiązanie: albo włączyć ESM w `package.json` (`"type": "module"`) i dostosować `tsconfig`, albo kompilować do CommonJS i uruchamiać w trybie CJS (obecne obrazy Dockera domyślnie budują do CommonJS).
+
+Jeśli budowanie Dockera kończy się błędem z powodu natywnych zależności, upewnij się, że etap budowy obrazu zawiera narzędzia budowania (w przykładowym builderze użyto Debian-slim — w razie potrzeby dodaj `build-essential`/`python3`).
+
+## Testy i CI
+
+- Pisanie testów jednostkowych z mockowaniem Cosmos (lub użycie emulatora) oraz IoT Hub. Użyj `nock` lub dependency injection do mockowania wywołań SDK Azure.
+- Pipeline CI: uruchamiaj lint, testy, build, a następnie opcjonalnie buduj obrazy Docker i uruchamiaj testy smoke.
+
+## Bezpieczeństwo i rekomendacje produkcyjne
+
+- Przechowuj sekrety w Key Vault lub w systemie zarządzania sekretami CI. Nie commituj pliku `.env`.
+- Stosuj zasadę najmniejszych uprawnień i rotuj klucze regularnie.
+- Dodaj readiness/liveness probes i obsługę graceful shutdown.
+
+## Wkład (Contributing)
+
+Wkłady mile widziane. Pomysły:
+
+- Rozszerzenie REST API o CRUD dla zadań i dodatkowe endpointy kontrolne.
+- Dodanie uwierzytelniania i kontroli ról.
+- Dodanie testów jednostkowych/integracyjnych oraz workflowów CI.
+- Ulepszenie logowania i monitoringu.
+
+Otwieraj issues lub PR-y ze swoimi propozycjami.
+
+## Licencja
+
+Projekt używa licencji ISC (zgodnie z `package.json`). Dodaj plik `LICENSE`, jeśli to konieczne.
+
+---
+
+Jeśli chcesz, mogę również:
+
+- dodać `docker-compose.dev.yml` dla hot-reload i bind mountów,
+- dodać przykładowe polecenia `curl` dla endpointów,
+- dodać `CONTRIBUTING.md` z wytycznymi dotyczącymi PR-ów.
