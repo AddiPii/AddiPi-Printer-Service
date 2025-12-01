@@ -13,13 +13,27 @@ export async function startScheduledJobs(): Promise<void> {
         console.error('Cosmos DB container not initialized.');
         return;
     }
+    
+    const printing = await container.items
+        .query(`SELECT * FROM c WHERE c.status = 'printing'`)
+        .fetchAll();
+
+    if (printing.resources.length > 0) {
+        console.log(`Printer is busy, skipping...`)
+        return  
+    }
 
     const nowDate: string = getLocalISO()
     const now: string = nowDate.substring(0, 19)
-    const query: string = `SELECT * FROM c WHERE c.status = 'scheduled' AND c.scheduledAt <= "${now}"`;
+    const query: string = `
+        SELECT TOP 1 * FROM c 
+        WHERE c.status = 'scheduled' 
+        AND c.scheduledAt <= "${now}" 
+        ORDER BY c.scheduledAt ASC
+    `;
     const { resources: jobs }: { resources: Array<{ id: string, status: string; scheduledAt: string; fileId: string;}> } = await container.items.query(query).fetchAll();
     // console.log(query)
-    console.log(`Job ${jobs[0]?.id} info: ${jobs}`)
+    console.log(`Job ${jobs[0]?.id} info: ${JSON.stringify(jobs)}`)
 
 
     for (const job of jobs){

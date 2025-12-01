@@ -2,6 +2,7 @@
 import * as iot from 'azure-iot-device';
 import * as mqtt from 'azure-iot-device-mqtt';
 
+
 const deviceConnectionString: string | undefined = process.env.DEVICE_CONNECTION_STRING;
 
 if (!deviceConnectionString){
@@ -19,7 +20,10 @@ client.open((err) => {
 });
 
 
-client.onDeviceMethod('startPrint', (request: any, response: any) => {
+client.onDeviceMethod('startPrint', (
+    request: iot.DeviceMethodRequest, 
+    response: iot.DeviceMethodResponse
+) => {
     console.log('Otrzymano komendę print_start:', request.payload);
 
     try {
@@ -30,8 +34,8 @@ client.onDeviceMethod('startPrint', (request: any, response: any) => {
         console.log(`Rozpoczynam drukowanie pliku: ${fileId}`);
         // await startPrint(fileId);  \
 
-        response.send(200, 'Drukowanie rozpoczęte', (err:string) => {
-            if (err) console.error('Błąd odpowiedzi:', err);
+        response.send(200, 'Drukowanie rozpoczęte', (error:Error | undefined) => {
+            if (error) console.error('Błąd odpowiedzi:', error);
             else console.log('Potwierdzenie wysłane do chmury');
         });
     } catch (err) {
