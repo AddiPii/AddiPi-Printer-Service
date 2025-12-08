@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
+ "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "npx tsc && node dist/index.js",
@@ -15,14 +15,21 @@
     "url": "git+https://github.com/AddiPii/AddiPi-Printer-Service.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "OveZ",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/AddiPii/AddiPi-Printer-Service/issues"
+  "dependencies": {
+    "@azure/cosmos": "^4.7.0",
+    "@azure/identity": "^4.13.0",
+    "azure-iot-device": "^1.18.3",
+    "azure-iot-device-mqtt": "^1.15.9",
+    "azure-iothub": "^1.16.6",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "node-cron": "^4.2.1"
   },
-  "homepage": "https://github.com/AddiPii/AddiPi-Printer-Service#readme",
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@tsconfig/node22": "^22.0.5",
     "@types/azure": "^0.9.20",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
@@ -38,15 +45,5 @@
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.4"
-  },
-  "dependencies": {
-    "@azure/cosmos": "^4.7.0",
-    "@azure/identity": "^4.13.0",
-    "azure-iot-device": "^1.18.3",
-    "azure-iot-device-mqtt": "^1.15.9",
-    "azure-iothub": "^1.16.6",
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "node-cron": "^4.2.1"
   }
 }
