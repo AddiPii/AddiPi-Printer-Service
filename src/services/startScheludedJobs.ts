@@ -7,7 +7,7 @@ import { Client as ServiceClient} from 'azure-iothub'
 
 export async function startScheduledJobs(): Promise<void> {
     const container: Container = initCosmosContainer(CONFIG.COSMOS_ENDPOINT, CONFIG.COSMOS_KEY)
-    const serviceClient = ServiceClient.fromConnectionString(CONFIG.IOT_HUB_SERVICE_CS);
+    const serviceClient: ServiceClient = ServiceClient.fromConnectionString(CONFIG.IOT_HUB_SERVICE_CS);
 
     if (!container) {
         console.error('Cosmos DB container not initialized.');
