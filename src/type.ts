@@ -1,5 +1,6 @@
 export interface configType {
     IOT_HUB_SERVICE_CS: string,
+    IOT_HUB_EVENT_HUB_CS: string,
     COSMOS_ENDPOINT: string,
     COSMOS_KEY: string,
     PORT: number,

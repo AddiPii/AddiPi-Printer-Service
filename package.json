@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
- "scripts": {
+  "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "npx tsc && node dist/index.js",
     "lint": "eslint . --ext .ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "pi-device": "tsx src/pi-device.ts"
   },
   "repository": {
     "type": "git",
@@ -19,6 +20,7 @@
   "license": "ISC",
   "dependencies": {
     "@azure/cosmos": "^4.7.0",
+    "@azure/event-hubs": "^6.0.0",
     "@azure/identity": "^4.13.0",
     "azure-iot-device": "^1.18.3",
     "azure-iot-device-mqtt": "^1.15.9",
@@ -34,6 +36,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/node": "^24.10.1",
+    "@types/node-cron": "^3.0.11",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
     "eslint": "^9.39.1",
