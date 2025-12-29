@@ -101,5 +101,97 @@ export class TelemetryListener {
         }
     }
 
-    
+    private async handlePrintStarted(
+        message: TelemetryMessage
+    ): Promise<void> {
+        if(!message.jobId) return
+
+        try {
+            const { resource: job } = await this.container
+                .item(message.jobId, message.jobId)
+                .read()
+
+            if(job) {
+                job.status = 'printing'
+                job.startedAt = message.timestamp
+                job.deviceId = message.deviceId
+
+                await this.container
+                    .item(message.jobId, message.jobId)
+                    .replace(job)
+                
+                console.log(`Job ${message.jobId} status updated to printing`)
+            }
+        } catch (err) {
+            console.error(`Error updating job ${message.jobId}: `, err)
+        }
+    }
+
+    private async handlePrintProgress(
+        message: TelemetryMessage
+    ): Promise<void> {
+        if(!message.jobId) return
+
+        try {
+            const { resource: job } = await this.container
+                .item(message.jobId, message.jobId)
+                .read()
+            
+            if(job) {
+                job.progress = message.progress || 0
+                job.printTime = message.printTime || 0
+                job.printTimeLeft = message.printTimeLeft || 0
+                job.lastUpdatedAt = message.timestamp || 0
+
+                await this.container
+                    .item(message.jobId, message.jobId)
+                    .replace(job)
+
+                console.log(
+                    `Job ${message.jobId} progress: ${message.progress?.toFixed(1)}%`
+                )
+            }
+        } catch (err) {
+            console.error(`Error updating progress for job ${message.jobId}:`, err)
+        }
+    }
+
+    private async handlePrintCompleted(
+        message: TelemetryMessage
+    ): Promise<void> {
+        if (!message.jobId) return
+
+        try {
+            const { resource: job } = await this.container
+                .item(message.jobId, message.jobId)
+                .read()
+
+            if (job) {
+                job.status = 'completed'
+                job.completedAt = message.timestamp
+                job.printDuration = message.printDuration || 0
+                job.progress = 100
+
+                await this.container
+                    .item(message.jobId, message.jobId)
+                    .replace(job)
+
+                console.log(`Job ${message.jobId} completed successfully`)
+            }
+        } catch (err) {
+            console.error(`Error marking job ${message.jobId} as completed:`, err)
+        }
+    }
+
+    private async handlePrintFailed(
+        message: TelemetryMessage
+    ): Promise<void> {
+
+    }
+
+    private async handlePrintCancelled(
+        message: TelemetryMessage
+    ): Promise<void> {
+        
+    }
 }
