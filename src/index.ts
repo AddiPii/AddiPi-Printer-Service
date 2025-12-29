@@ -6,25 +6,31 @@ import cors from 'cors'
 import { CONFIG } from './config/config.js';
 import { startScheduledJobs } from './services/startScheludedJobs.js';
 import type { healthMessageType } from './type.js';
+import { TelemetryListener } from './services/telemetryListener.js';
 
 
 const PORT: number = CONFIG.PORT
 
 
-cron.schedule('* * * * *', startScheduledJobs);
-console.log('Scheduler runs every mninute');
+const telemetryListener = new TelemetryListener(CONFIG.IOT_HUB_EVENT_HUB_CS)
+telemetryListener.start().catch(err => {
+  console.error('Failed to start Telemetry Listener: ', err)
+})
+
+cron.schedule('* * * * *', startScheduledJobs)
+console.log('Scheduler runs every mninute')
 
 
-const app = express();
+const app = express()
 
 
-app.use(express.json());
+app.use(express.json())
 
 app.use(cors())
 
 app.get('/', (request: Request, response:Response<string>): void => {
-  response.json('Addipi Printer Service działa! 🚀');
-});
+  response.json('Addipi Printer Service działa! 🚀')
+})
 
 
 const healthMessage: healthMessageType = {
@@ -58,4 +64,18 @@ app.use((request: Request, response: Response<{error: string}>): void => {
 
 app.listen(PORT, (): void => {
   console.log(`Serwer działa na porcie ${PORT}`);
-});
+})
+
+
+process.on('SIGTERM', async() => {
+  console.log('SIGTERM received, shutting down...')
+  await telemetryListener.stop()
+  process.exit(0)
+})
+
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, shutting down...')
+  await telemetryListener.stop()
+  process.exit(0)
+})
