@@ -233,4 +233,13 @@ export class TelemetryListener {
             console.error(`Error marking job ${message.jobId} as cancelled:`, err)
         }
     }
+
+    async stop(): Promise<void> {
+        if(!this.isRunning) return
+
+        console.log('Stopping telemetry listener...')
+        await this.consumerClient.close()
+        this.isRunning = false
+        console.log('Telemetry Listener stopped')
+    }
 }
