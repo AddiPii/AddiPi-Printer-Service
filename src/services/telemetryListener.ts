@@ -16,7 +16,7 @@ export class TelemetryListener {
             eventHubConnectionString
         )
 
-        this.container = initCosmosContainer(\
+        this.container = initCosmosContainer(
             CONFIG.COSMOS_ENDPOINT,
             CONFIG.COSMOS_KEY
         )
