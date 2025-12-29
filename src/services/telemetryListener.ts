@@ -56,5 +56,50 @@ export class TelemetryListener {
         }
     }
 
+    private async handleTelemetryMessage(
+        message: TelemetryMessage
+    ): Promise<void> {
+        try {
+            console.log(
+                `Received telemetry: ${message.event} from ${message.deviceId}`
+            )
+
+            switch (message.event) {
+                case 'print_started':
+                    await this.handlePrintStarted(message)
+                    break
+                
+                case 'print_progress':
+                    await this.handlePrintProgress(message)
+                    break
+                
+                case 'print_completed':
+                    await this.handlePrintCompleted(message)
+                    break
+
+                case 'print_failed':
+                    await this.handlePrintFailed(message)
+                    break
+
+                case 'print_cancelled':
+                    await this.handlePrintCancelled(message)
+                    break
+
+                case 'agent_started':
+                    console.log(`✓ Agent ${message.deviceId} started`);
+                    break
+
+                case 'agent_stopped':
+                    console.log(`⚠ Agent ${message.deviceId} stopped`);
+                    break
+
+                default:
+                    console.log(`Unknown event type: ${message.event}`)
+            }
+        } catch (err) {
+            console.error('Error handling telemetry message: ', err)
+        }
+    }
+
     
 }
