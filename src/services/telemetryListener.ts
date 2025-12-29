@@ -86,11 +86,11 @@ export class TelemetryListener {
                     break
 
                 case 'agent_started':
-                    console.log(`✓ Agent ${message.deviceId} started`);
+                    console.log(`✓ Agent ${message.deviceId} started`)
                     break
 
                 case 'agent_stopped':
-                    console.log(`⚠ Agent ${message.deviceId} stopped`);
+                    console.log(`⚠ Agent ${message.deviceId} stopped`)
                     break
 
                 default:
@@ -186,12 +186,51 @@ export class TelemetryListener {
     private async handlePrintFailed(
         message: TelemetryMessage
     ): Promise<void> {
+        if(!message.jobId) return
 
+        try {
+            const { resource: job } = await this.container
+                .item(message.jobId, message.jobId)
+                .read()
+
+            if (job) {
+                job.status = 'failed'
+                job.failedAt = message.timestamp
+                job.failureReason = message.reason || 'Unknown error'
+
+                await this.container
+                    .item(message.jobId, message.jobId)
+                    .replace(job)
+
+                console.log(`Job ${message.jobId} failed: ${message.reason}`)
+            }
+        } catch (err) {
+            console.error(`Error marking job ${message.jobId} as failed:`, err)
+        }
     }
 
     private async handlePrintCancelled(
         message: TelemetryMessage
     ): Promise<void> {
-        
+        if(!message.jobId) return
+
+        try {
+            const { resource: job } = await this.container
+                .item(message.jobId, message.jobId)
+                .read()
+
+            if (job) {
+                job.status = 'cancelled'
+                job.cancelledAt = message.timestamp
+
+                await this.container
+                    .item(message.jobId, message.jobId)
+                    .replace(job)
+
+                console.log(`⚠ Job ${message.jobId} cancelled`)
+            }
+        } catch (err) {
+            console.error(`Error marking job ${message.jobId} as cancelled:`, err)
+        }
     }
 }
