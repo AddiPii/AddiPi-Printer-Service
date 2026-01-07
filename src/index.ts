@@ -7,6 +7,7 @@ import { CONFIG } from './config/config.js';
 import { startScheduledJobs } from './services/startScheludedJobs.js';
 import type { healthMessageType } from './type.js';
 import { TelemetryListener } from './services/telemetryListener.js';
+import { printerRouter } from './routes/printerRoutes.js';
 
 
 const PORT: number = CONFIG.PORT
@@ -47,15 +48,12 @@ app.get('/printer/health', (
 
 })
 
-
+app.use('/printer', printerRouter)
 
 // app.get('/printer/devices', (request, response) => {
 // TODO: lista zarejestrowanych drukarek/urządzeń (statusy, lastSeen, capabilities) — może pobierać z IoT Hub
 // })
 
-// app.get('/printer/metrics', (request, response) => {
-//     TODO: proste liczniki przydatne do dashboardu Response: { "queued": 12, "printing": 2, "failed24h": 3 }
-// })
 
 app.use((request: Request, response: Response<{error: string}>): void => {
     response.status(404).json({error: 'Endpoint not found'})
