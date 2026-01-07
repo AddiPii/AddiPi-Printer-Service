@@ -16,5 +16,5 @@ export const CONFIG: configType = {
     COSMOS_ENDPOINT: getRequired('COSMOS_ENDPOINT'),
     COSMOS_KEY: getRequired('COSMOS_KEY'),
     AUTH_SERVICE_URL: getRequired('AUTH_SERVICE_URL') || 'http://host.docker.internal:3001',
-    PORT: Number(process.env.AUTH_PORT || 3050),
+    PORT: Number(process.env.PRINTER_PORT || 3050),
 };
