@@ -86,7 +86,7 @@ export async function cancelJob(req: Request, res: Response): Promise<void> {
                 const methodParams = {
                     methodName: 'cancelPrint',
                     payload: JSON.stringify({ jobId }),
-                    responseTimeoutInSeconds: 30
+                    responseTimeoutInSeconds: 60
                 }
 
                 const deviceId = job.deviceId || 'raspberry-pi-mkt-01'
@@ -122,29 +122,64 @@ export async function getPrinterStatus(req: Request, res: Response): Promise<voi
 
         const methodParams = {
             methodName: 'getStatus',
-            payload: JSON.stringify({}),
-            responseTimeoutInSeconds: 10
+            payload: {},
+            responseTimeoutInSeconds: 60
         }
 
+        console.log('🔄 Wywołuję metodę getStatus dla:', deviceId)
+        
         const result = await serviceClient.invokeDeviceMethod(deviceId, methodParams) as any
 
-        if (result.status === 200 && result.payload) {
+        // Sprawdź PRAWDZIWĄ strukturę:
+        console.log('🔑 result keys:', Object.keys(result))
+        console.log('📦 result.result:', result.result)
+        console.log('💬 result.message:', result.message)
+        
+        // Prawdopodobnie result.result zawiera { status, payload }
+        if (result.result) {
+            console.log('📊 result.result.status:', result.result.status)
+            console.log('📦 result.result.payload:', result.result.payload)
+        }
+
+        // POPRAWNA obsługa:
+        const methodResult = result.result
+        
+        if (methodResult && methodResult.status === 200) {
+            const payload = typeof methodResult.payload === 'string' 
+                ? JSON.parse(methodResult.payload) 
+                : methodResult.payload
+
+            console.log('✅ Parsed payload:', payload)
+
             res.json({
                 deviceId,
-                ...result.payload
+                ...payload
             })
         } else {
+            console.log('❌ Method failed')
             res.status(503).json({
                 error: 'Device not responding',
-                deviceId
+                deviceId,
+                methodResult: methodResult
             })
         }
     } catch (error) {
-        console.error('Error getting printer status:', error)
-        res.status(503).json({
-            error: 'Failed to get printer status',
-            message: 'Device may be offline'
-        })
+        console.error('❌ EXCEPTION:', error)
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        
+        if (errorMessage.includes('504') || errorMessage.includes('Timed out')) {
+            res.status(504).json({
+                error: 'Device timeout',
+                message: 'Device is not responding in time.',
+                deviceId: (req.query.deviceId as string) || 'raspberry-pi-mkt-01'
+            })
+        } else {
+            res.status(503).json({
+                error: 'Failed to get printer status',
+                message: errorMessage,
+                deviceId: (req.query.deviceId as string) || 'raspberry-pi-mkt-01'
+            })
+        }
     }
 }
 
