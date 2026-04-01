@@ -7,7 +7,8 @@ import {
     getMetrics,
     getJobProgress,
     retryJob,
-    deleteJob
+    deleteJob,
+    confirmPrinterReady
 } from '../controllers/printerController.js';
 import requireAuth from '../middleware/requireAuth.js';
 import requireAdmin from '../middleware/requireAdmin.js';
@@ -21,6 +22,7 @@ printerRouter.get('/jobs/:jobId', requireAuth ,getJobById);
 printerRouter.get('/jobs/:jobId/progress', getJobProgress);
 printerRouter.post('/jobs/:jobId/cancel', requireAuth, requireAdmin, cancelJob);
 printerRouter.post('/jobs/:jobId/retry', requireAuth, retryJob);
+printerRouter.post('/jobs/:jobId/confirm-ready', requireAuth, confirmPrinterReady)
 printerRouter.delete('/jobs/:jobId', requireAuth ,requireAdmin ,deleteJob);
 
 printerRouter.get('/status', getPrinterStatus);
