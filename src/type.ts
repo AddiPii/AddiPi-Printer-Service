@@ -4,6 +4,8 @@ export interface configType {
     COSMOS_ENDPOINT: string,
     COSMOS_KEY: string,
     AUTH_SERVICE_URL: string,
+    ALERT_WEBHOOK_URL?: string,
+    ADMIN_ALERT_EMAILS?: string,
     PORT: number,
 }
 
