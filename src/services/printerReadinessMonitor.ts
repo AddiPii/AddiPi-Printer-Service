@@ -1,6 +1,7 @@
 import type { Container } from '@azure/cosmos';
 import { initCosmosContainer } from '../db/initCosmosContainer.js';
 import { CONFIG } from '../config/config.js';
+import getLocalISO from '../helpers/getLocalISO.js';
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -17,20 +18,6 @@ type ReadyJob = {
   delayedAt?: string;
   autoCancelledAt?: string;
 };
-
-function formatLocalISO(date: Date): string {
-  return new Intl.DateTimeFormat('sv-SE', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    fractionalSecondDigits: 3,
-    hour12: false,
-    timeZone: 'Europe/Warsaw',
-  }).format(date).replace(' ', 'T') + 'Z';
-}
 
 function buildReadinessQuery(cutoffIso: string, fieldName: keyof ReadyJob): string {
   return `
@@ -96,7 +83,7 @@ export async function monitorPrinterReadiness(): Promise<void> {
 
   const readinessStages = [
     {
-      query: buildReadinessQuery(formatLocalISO(new Date(nowMs - 48 * HOUR)), 'autoCancelledAt'),
+      query: buildReadinessQuery(getLocalISO(new Date(nowMs - 48 * HOUR)), 'autoCancelledAt'),
       handle: async (job: ReadyJob) => {
         const updatedJob = {
           ...job,
@@ -110,7 +97,7 @@ export async function monitorPrinterReadiness(): Promise<void> {
       },
     },
     {
-      query: buildReadinessQuery(formatLocalISO(new Date(nowMs - 12 * HOUR)), 'reminder12hSentAt'),
+      query: buildReadinessQuery(getLocalISO(new Date(nowMs - 12 * HOUR)), 'reminder12hSentAt'),
       handle: async (job: ReadyJob) => {
         const updatedJob = {
           ...job,
@@ -126,7 +113,7 @@ export async function monitorPrinterReadiness(): Promise<void> {
       },
     },
     {
-      query: buildReadinessQuery(formatLocalISO(new Date(nowMs - 3 * HOUR)), 'reminder3hSentAt'),
+      query: buildReadinessQuery(getLocalISO(new Date(nowMs - 3 * HOUR)), 'reminder3hSentAt'),
       handle: async (job: ReadyJob) => {
         const updatedJob = {
           ...job,
@@ -137,7 +124,7 @@ export async function monitorPrinterReadiness(): Promise<void> {
       },
     },
     {
-      query: buildReadinessQuery(formatLocalISO(new Date(nowMs - 60 * MINUTE)), 'reminder60SentAt'),
+      query: buildReadinessQuery(getLocalISO(new Date(nowMs - 60 * MINUTE)), 'reminder60SentAt'),
       handle: async (job: ReadyJob) => {
         const updatedJob = {
           ...job,
