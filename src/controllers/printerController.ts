@@ -4,6 +4,14 @@ import type { Container } from '@azure/cosmos';
 import { initCosmosContainer } from '../db/initCosmosContainer.js';
 import { CONFIG } from '../config/config.js';
 
+interface AuthenticatedRequest extends Request {
+    user?: {
+        userId?: string;
+        id?: string;
+        role?: string;
+    };
+}
+
 const container: Container = initCosmosContainer(
     CONFIG.COSMOS_ENDPOINT,
     CONFIG.COSMOS_KEY
@@ -13,7 +21,7 @@ const serviceClient: ServiceClient = ServiceClient.fromConnectionString(
     CONFIG.IOT_HUB_SERVICE_CS
 )
 
-// GET /printer/jobs - Lista wszystkich jobów
+// GET /printer/jobs - Lista wszystkich jobow
 export async function getAllJobs(req: Request, res: Response): Promise<void> {
     try {
         const { status, limit = 50, offset = 0 } = req.query
@@ -38,7 +46,7 @@ export async function getAllJobs(req: Request, res: Response): Promise<void> {
     }
 }
 
-// GET /printer/jobs/:jobId - Szczegóły konkretnego joba
+// GET /printer/jobs/:jobId - Szczegoly konkretnego joba
 export async function getJobById(req: Request, res: Response): Promise<void> {
     try {
         const { jobId } = req.params
@@ -73,7 +81,7 @@ export async function cancelJob(req: Request, res: Response): Promise<void> {
             return
         }
 
-        if (!['scheduled', 'pending', 'printing'].includes(job.status)) {
+        if (!['scheduled', 'pending', 'printing', 'waiting_for_printer_ready', 'delayed'].includes(job.status)) {
             res.status(400).json({
                 error: 'Job cannot be cancelled',
                 currentStatus: job.status
@@ -115,6 +123,95 @@ export async function cancelJob(req: Request, res: Response): Promise<void> {
     }
 }
 
+// POST /printer/jobs/:jobId/confirm-ready - Potwierdz gotowosc drukarki i uruchom druk
+export async function confirmPrinterReady(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+        const { jobId } = req.params
+
+        const { resource: job } = await container
+            .item(jobId, jobId)
+            .read()
+
+        if (!job) {
+            res.status(404).json({ error: 'Job not found' })
+            return
+        }
+
+        if (!['waiting_for_printer_ready', 'delayed'].includes(job.status)) {
+            res.status(400).json({
+                error: 'Job is not waiting for readiness confirmation',
+                currentStatus: job.status
+            })
+            return
+        }
+
+        const requesterId = req.user?.userId || req.user?.id
+        const isAdmin = req.user?.role === 'admin'
+        const isOwner = Boolean(requesterId && job.userId === requesterId)
+
+        if (!isAdmin && !isOwner) {
+            res.status(403).json({ error: 'Only job owner or admin can confirm readiness' })
+            return
+        }
+
+        const now = new Date().toISOString()
+        const previousState = {
+            status: job.status,
+            readinessConfirmedAt: job.readinessConfirmedAt,
+            startedAt: job.startedAt,
+            delayedReason: job.delayedReason,
+            failureReason: job.failureReason
+        }
+
+        job.status = 'printing'
+        job.readinessConfirmedAt = now
+        job.startedAt = job.startedAt || now
+        job.delayedReason = undefined
+        job.startCommandFailedAt = undefined
+        job.startCommandError = undefined
+
+        await container.item(jobId, jobId).replace(job)
+
+        try {
+            const methodParams = {
+                methodName: 'startPrint',
+                payload: JSON.stringify({ event: 'print_start', fileId: job.fileId, jobId }),
+                responseTimeoutInSeconds: 60
+            }
+
+            const deviceId = job.deviceId || 'raspberry-pi-mkt-01'
+            await serviceClient.invokeDeviceMethod(deviceId, methodParams)
+        } catch (iotError) {
+            console.error('Error sending start command after readiness confirmation:', iotError)
+
+            job.status = previousState.status
+            job.readinessConfirmedAt = previousState.readinessConfirmedAt
+            job.startedAt = previousState.startedAt
+            job.delayedReason = previousState.delayedReason
+            job.failureReason = previousState.failureReason
+            job.startCommandFailedAt = now
+            job.startCommandError = iotError instanceof Error ? iotError.message : String(iotError)
+            await container.item(jobId, jobId).replace(job)
+
+            res.status(503).json({
+                error: `Printer did not accept start command. Job reverted to ${previousState.status}.`,
+                currentStatus: job.status,
+                previousStatus: previousState.status
+            })
+            return
+        }
+
+        res.json({
+            message: 'Printer readiness confirmed. Print started.',
+            jobId,
+            status: 'printing'
+        })
+    } catch (error) {
+        console.error('Error confirming printer readiness:', error)
+        res.status(500).json({ error: 'Failed to confirm printer readiness' })
+    }
+}
+
 // GET /printer/status - Aktualny status drukarki
 export async function getPrinterStatus(req: Request, res: Response): Promise<void> {
     try {
@@ -126,37 +223,21 @@ export async function getPrinterStatus(req: Request, res: Response): Promise<voi
             responseTimeoutInSeconds: 60
         }
 
-        console.log('🔄 Wywołuję metodę getStatus dla:', deviceId)
-        
+        console.log('Wywoluje metode getStatus dla:', deviceId)
+
         const result = await serviceClient.invokeDeviceMethod(deviceId, methodParams) as any
-
-        // Sprawdź PRAWDZIWĄ strukturę:
-        console.log('🔑 result keys:', Object.keys(result))
-        console.log('📦 result.result:', result.result)
-        console.log('💬 result.message:', result.message)
-        
-        // Prawdopodobnie result.result zawiera { status, payload }
-        if (result.result) {
-            console.log('📊 result.result.status:', result.result.status)
-            console.log('📦 result.result.payload:', result.result.payload)
-        }
-
-        // POPRAWNA obsługa:
         const methodResult = result.result
-        
-        if (methodResult && methodResult.status === 200) {
-            const payload = typeof methodResult.payload === 'string' 
-                ? JSON.parse(methodResult.payload) 
-                : methodResult.payload
 
-            console.log('✅ Parsed payload:', payload)
+        if (methodResult && methodResult.status === 200) {
+            const payload = typeof methodResult.payload === 'string'
+                ? JSON.parse(methodResult.payload)
+                : methodResult.payload
 
             res.json({
                 deviceId,
                 ...payload
             })
         } else {
-            console.log('❌ Method failed')
             res.status(503).json({
                 error: 'Device not responding',
                 deviceId,
@@ -164,9 +245,9 @@ export async function getPrinterStatus(req: Request, res: Response): Promise<voi
             })
         }
     } catch (error) {
-        console.error('❌ EXCEPTION:', error)
+        console.error('Exception during getStatus:', error)
         const errorMessage = error instanceof Error ? error.message : String(error)
-        
+
         if (errorMessage.includes('504') || errorMessage.includes('Timed out')) {
             res.status(504).json({
                 error: 'Device timeout',
@@ -187,14 +268,16 @@ export async function getPrinterStatus(req: Request, res: Response): Promise<voi
 export async function getMetrics(req: Request, res: Response): Promise<void> {
     try {
         const queries = {
-            queued: `SELECT VALUE COUNT(1) FROM c WHERE c.status IN ('scheduled', 'pending')`,
+            queued: `SELECT VALUE COUNT(1) FROM c WHERE c.status IN ('scheduled', 'pending', 'waiting_for_printer_ready', 'delayed')`,
             printing: `SELECT VALUE COUNT(1) FROM c WHERE c.status = 'printing'`,
+            waitingForReady: `SELECT VALUE COUNT(1) FROM c WHERE c.status = 'waiting_for_printer_ready'`,
+            delayed: `SELECT VALUE COUNT(1) FROM c WHERE c.status = 'delayed'`,
             completed: `SELECT VALUE COUNT(1) FROM c WHERE c.status = 'completed'`,
             failed: `SELECT VALUE COUNT(1) FROM c WHERE c.status = 'failed'`,
             cancelled: `SELECT VALUE COUNT(1) FROM c WHERE c.status = 'cancelled'`,
             failed24h: `
-                SELECT VALUE COUNT(1) FROM c 
-                WHERE c.status = 'failed' 
+                SELECT VALUE COUNT(1) FROM c
+                WHERE c.status = 'failed'
                 AND c.failedAt >= DateTimeAdd('hh', -24, GetCurrentDateTime())
             `
         }
@@ -255,7 +338,7 @@ export async function getJobProgress(req: Request, res: Response): Promise<void>
     }
 }
 
-// POST /printer/jobs/:jobId/retry - Ponów nieudane zadanie
+// POST /printer/jobs/:jobId/retry - Ponow nieudane zadanie
 export async function retryJob(req: Request, res: Response): Promise<void> {
     try {
         const { jobId } = req.params
@@ -281,6 +364,16 @@ export async function retryJob(req: Request, res: Response): Promise<void> {
         job.failedAt = undefined
         job.failureReason = undefined
         job.cancelledAt = undefined
+        job.waitingStartedAt = undefined
+        job.readinessConfirmedAt = undefined
+        job.reminder60SentAt = undefined
+        job.reminder3hSentAt = undefined
+        job.reminder12hSentAt = undefined
+        job.delayedAt = undefined
+        job.autoCancelledAt = undefined
+        job.delayedReason = undefined
+        job.startCommandFailedAt = undefined
+        job.startCommandError = undefined
         job.progress = 0
 
         await container.item(jobId, jobId).replace(job)
@@ -297,7 +390,7 @@ export async function retryJob(req: Request, res: Response): Promise<void> {
     }
 }
 
-// DELETE /printer/jobs/:jobId - Usuń job (tylko completed/failed/cancelled)
+// DELETE /printer/jobs/:jobId - Usun job (tylko completed/failed/cancelled)
 export async function deleteJob(req: Request, res: Response): Promise<void> {
     try {
         const { jobId } = req.params
@@ -311,7 +404,7 @@ export async function deleteJob(req: Request, res: Response): Promise<void> {
             return
         }
 
-        if (['scheduled', 'pending', 'printing'].includes(job.status)) {
+        if (['scheduled', 'pending', 'printing', 'waiting_for_printer_ready', 'delayed'].includes(job.status)) {
             res.status(400).json({
                 error: 'Cannot delete active job. Cancel it first.',
                 currentStatus: job.status
