@@ -36,7 +36,7 @@ export async function startScheduledJobs(): Promise<void> {
     const query: string = `
         SELECT TOP 1 * FROM c 
         WHERE (c.status = 'scheduled' OR c.status = 'pending')
-        AND (c.scheduledAt <= "${now}" OR c.scheduledAt = null)
+        AND (c.scheduledAt <= "${now}" OR IS_NULL(c.scheduledAt) OR NOT IS_DEFINED(c.scheduledAt))
         ORDER BY c.scheduledAt ASC
     `;
     const { resources: jobs }: { resources: Array<{ id: string, status: string; scheduledAt: string; fileId: string; waitingStartedAt?: string;}> } = await container.items.query(query).fetchAll();
@@ -55,6 +55,8 @@ export async function startScheduledJobs(): Promise<void> {
         (job as any).delayedAt = undefined;
         (job as any).autoCancelledAt = undefined;
         (job as any).delayedReason = undefined;
+        (job as any).startCommandFailedAt = undefined;
+        (job as any).startCommandError = undefined;
         await container.item(job.id, job.id).replace(job);
 
         console.log(`Job ${job.id} moved to waiting_for_printer_ready.`);

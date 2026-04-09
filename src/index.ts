@@ -20,7 +20,7 @@ telemetryListener.start().catch(err => {
 })
 
 cron.schedule('* * * * *', startScheduledJobs)
-console.log('Scheduler runs every mninute')
+console.log('Scheduler runs every minute')
 
 cron.schedule('*/5 * * * *', monitorPrinterReadiness)
 console.log('Readiness monitor runs every 5 minutes')

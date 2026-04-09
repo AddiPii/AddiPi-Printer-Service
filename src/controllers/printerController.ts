@@ -167,6 +167,8 @@ export async function confirmPrinterReady(req: AuthenticatedRequest, res: Respon
         job.readinessConfirmedAt = now
         job.startedAt = job.startedAt || now
         job.delayedReason = undefined
+        job.startCommandFailedAt = undefined
+        job.startCommandError = undefined
 
         await container.item(jobId, jobId).replace(job)
 
@@ -187,6 +189,8 @@ export async function confirmPrinterReady(req: AuthenticatedRequest, res: Respon
             job.startedAt = previousState.startedAt
             job.delayedReason = previousState.delayedReason
             job.failureReason = previousState.failureReason
+            job.startCommandFailedAt = now
+            job.startCommandError = iotError instanceof Error ? iotError.message : String(iotError)
             await container.item(jobId, jobId).replace(job)
 
             res.status(503).json({
@@ -368,6 +372,8 @@ export async function retryJob(req: Request, res: Response): Promise<void> {
         job.delayedAt = undefined
         job.autoCancelledAt = undefined
         job.delayedReason = undefined
+        job.startCommandFailedAt = undefined
+        job.startCommandError = undefined
         job.progress = 0
 
         await container.item(jobId, jobId).replace(job)
