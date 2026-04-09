@@ -100,6 +100,8 @@ export async function monitorPrinterReadiness(): Promise<void> {
         ...job,
         status: 'delayed',
         delayedAt: job.delayedAt || new Date(now).toISOString(),
+        reminder60SentAt: job.reminder60SentAt || new Date(now).toISOString(),
+        reminder3hSentAt: job.reminder3hSentAt || new Date(now).toISOString(),
         reminder12hSentAt: new Date(now).toISOString(),
         delayedReason: 'No readiness confirmation after 12h.',
       };

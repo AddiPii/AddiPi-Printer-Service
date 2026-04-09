@@ -22,7 +22,7 @@ printerRouter.get('/jobs/:jobId', requireAuth ,getJobById);
 printerRouter.get('/jobs/:jobId/progress', getJobProgress);
 printerRouter.post('/jobs/:jobId/cancel', requireAuth, requireAdmin, cancelJob);
 printerRouter.post('/jobs/:jobId/retry', requireAuth, retryJob);
-printerRouter.post('/jobs/:jobId/confirm-ready', requireAuth, confirmPrinterReady)
+printerRouter.post('/jobs/:jobId/confirm-ready', requireAuth, confirmPrinterReady);
 printerRouter.delete('/jobs/:jobId', requireAuth ,requireAdmin ,deleteJob);
 
 printerRouter.get('/status', getPrinterStatus);

@@ -155,7 +155,13 @@ export async function confirmPrinterReady(req: AuthenticatedRequest, res: Respon
         }
 
         const now = new Date().toISOString()
-        const previousStatus = job.status
+        const previousState = {
+            status: job.status,
+            readinessConfirmedAt: job.readinessConfirmedAt,
+            startedAt: job.startedAt,
+            delayedReason: job.delayedReason,
+            failureReason: job.failureReason
+        }
 
         job.status = 'printing'
         job.readinessConfirmedAt = now
@@ -176,13 +182,17 @@ export async function confirmPrinterReady(req: AuthenticatedRequest, res: Respon
         } catch (iotError) {
             console.error('Error sending start command after readiness confirmation:', iotError)
 
-            job.status = previousStatus
-            job.failureReason = 'Readiness confirmed but startPrint command failed.'
+            job.status = previousState.status
+            job.readinessConfirmedAt = previousState.readinessConfirmedAt
+            job.startedAt = previousState.startedAt
+            job.delayedReason = previousState.delayedReason
+            job.failureReason = previousState.failureReason
             await container.item(jobId, jobId).replace(job)
 
             res.status(503).json({
-                error: 'Printer did not accept start command. Job returned to waiting state.',
-                currentStatus: job.status
+                error: `Printer did not accept start command. Job reverted to ${previousState.status}.`,
+                currentStatus: job.status,
+                previousStatus: previousState.status
             })
             return
         }
