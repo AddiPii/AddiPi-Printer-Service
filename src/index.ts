@@ -40,7 +40,7 @@ app.get('/', (request: Request, response:Response<string>): void => {
 
 const healthMessage: healthMessageType = {
     ok: true,
-    time: new Date().toLocaleString('pl-PL')
+  time: new Date().toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw' })
 }
 
 app.get('/printer/health', (
