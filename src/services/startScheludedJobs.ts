@@ -32,11 +32,10 @@ export async function startScheduledJobs(): Promise<void> {
     }
 
     const nowDate: string = getLocalISO()
-    const now: string = nowDate.substring(0, 19)
     const query: string = `
         SELECT TOP 1 * FROM c 
         WHERE (c.status = 'scheduled' OR c.status = 'pending')
-        AND (c.scheduledAt <= "${now}" OR IS_NULL(c.scheduledAt) OR NOT IS_DEFINED(c.scheduledAt))
+        AND (c.scheduledAt <= "${nowDate}" OR IS_NULL(c.scheduledAt) OR NOT IS_DEFINED(c.scheduledAt))
         ORDER BY c.scheduledAt ASC
     `;
     const { resources: jobs }: { resources: Array<{ id: string, status: string; scheduledAt: string; fileId: string; waitingStartedAt?: string;}> } = await container.items.query(query).fetchAll();
