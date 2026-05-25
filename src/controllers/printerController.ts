@@ -12,6 +12,15 @@ interface AuthenticatedRequest extends Request {
     };
 }
 
+function canManageJob(job: any, user?: AuthenticatedRequest['user']): boolean {
+    if (!job || !user) {
+        return false;
+    }
+
+    const requesterId = user.userId || user.id;
+    return user.role === 'admin' || (Boolean(requesterId) && job.userId === requesterId);
+}
+
 const container: Container = initCosmosContainer(
     CONFIG.COSMOS_ENDPOINT,
     CONFIG.COSMOS_KEY
@@ -71,6 +80,7 @@ export async function getJobById(req: Request, res: Response): Promise<void> {
 export async function cancelJob(req: Request, res: Response): Promise<void> {
     try {
         const { jobId } = req.params
+        const user = (req as AuthenticatedRequest).user
 
         const { resource: job } = await container
             .item(jobId, jobId)
@@ -86,6 +96,11 @@ export async function cancelJob(req: Request, res: Response): Promise<void> {
                 error: 'Job cannot be cancelled',
                 currentStatus: job.status
             })
+            return
+        }
+
+        if (!canManageJob(job, user)) {
+            res.status(403).json({ error: 'Only job owner or admin can cancel this job' })
             return
         }
 
